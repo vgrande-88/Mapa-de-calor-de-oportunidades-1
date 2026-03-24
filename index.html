@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title> Burgos Smart City </title>
+
+  <!-- Tipografía (opcional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+
+<body>
+  <!-- Mapa (fondo) -->
+  <div id="map"></div>
+
+  <!-- HUD superior -->
+  <header class="hud-top" role="banner">
+    <div class="brand">
+      <div class="brand-badge" aria-hidden="true"></div>
+      <div class="brand-text">
+        <div class="brand-title">Burgos Smart City</div>
+        <div class="brand-subtitle">RUN-EU FILS</div>
+      </div>
+    </div>
+
+    <div class="hud-search">
+      <input id="searchInput" type="search" placeholder="Buscar proyecto (título, categoría, palabras clave)…" />
+      <div class="search-hint" id="searchHint" aria-live="polite"></div>
+    </div>
+
+    <div class="hud-actions">
+      <button id="btnCenter" class="hud-btn" type="button" title="Centrar en Burgos">
+        <!-- icon: target -->
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" fill="currentColor"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <button id="btnTogglePanel" class="hud-btn hud-btn-primary" type="button" title="Mostrar/ocultar panel">
+        <!-- icon: panel -->
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16v14H4V5Z" stroke="currentColor" stroke-width="2" fill="none"/>
+          <path d="M10 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Panel flotante (listado) -->
+  <aside id="panel" class="panel" aria-label="Panel de proyectos">
+    <div class="panel-head">
+      <div class="panel-title">Proyectos</div>
+      <div class="panel-meta">
+        <span class="pill" id="countPill">0</span>
+        <button id="btnClosePanel" class="icon-btn" type="button" title="Cerrar panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      <div id="list" class="list"></div>
+    </div>
+
+    <div class="panel-foot">
+      <div class="foot-note">
+        Consejo: clic en el mapa para ver coordenadas (F12 → Consola).
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mini HUD inferior (estado) -->
+  <div class="hud-bottom">
+    <div class="status-card">
+      <div class="status-dot" aria-hidden="true"></div>
+      <div class="status-text">
+        <div class="status-line">
+          <span class="status-strong" id="statusCount">0</span> proyectos cargados
+        </div>
+        <div class="status-sub">
+          Pincha un punto para abrir la ficha
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
