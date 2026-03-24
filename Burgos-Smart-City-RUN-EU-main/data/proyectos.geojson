@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "titulo": "Videojuego en acción",
+        "descripcion": "Ejemplo de proyecto con enlace. Sustituye por tu documento real.",
+        "url": "https://example.com"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-3.70410, 42.34097]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "titulo": "Caminar genera energía",
+        "descripcion": "Ejemplo de proyecto con enlace. Sustituye por tu presentación o PDF.",
+        "url": "https://example.com"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-3.69210, 42.34315]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "titulo": "No estamos solos",
+        "descripcion": "Ejemplo de proyecto con enlace.",
+        "url": "https://example.com"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-3.69920, 42.34250]
+      }
+    }
+  ]
+}
