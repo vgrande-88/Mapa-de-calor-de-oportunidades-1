@@ -1,243 +1,99 @@
 // ==============================
-// Config
+// Configuración Inicial del Mapa
 // ==============================
-const centroBurgos = [42.34399, -3.69691];
-const zoomInicial = 13;
+const burgosCoords = [42.34399, -3.69691]; // Centro de Burgos
+const map = L.map('map', { zoomControl: false }).setView(burgosCoords, 14);
 
-// UI
-const panel = document.getElementById("panel");
-const btnTogglePanel = document.getElementById("btnTogglePanel");
-const btnClosePanel = document.getElementById("btnClosePanel");
-const btnCenter = document.getElementById("btnCenter");
-const searchInput = document.getElementById("searchInput");
-const searchHint = document.getElementById("searchHint");
-const listEl = document.getElementById("list");
-const countPill = document.getElementById("countPill");
-const statusCount = document.getElementById("statusCount");
-
-// ==============================
-// Map init
-// ==============================
-const map = L.map("map", { zoomControl: true }).setView(centroBurgos, zoomInicial);
-
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: "&copy; OpenStreetMap contributors",
+// Usamos un mapa base oscuro para que el calor resalte más
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO'
 }).addTo(map);
 
-// ==============================
-// State
-// ==============================
-let allFeatures = [];
-let activeId = null;
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-const markerById = new Map();
-const cardById = new Map();
+// Variables globales
+let heatLayer = null;
+let currentMode = 'empleo';
 
 // ==============================
-// Helpers
+// Simulación de Datos por Barrios
 // ==============================
-function escapeHtml(str = "") {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function makeId(feature) {
-  const p = feature.properties || {};
-  if (p.id) return String(p.id);
-  if (p.titulo) return String(p.titulo).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
-  return "p-" + Math.random().toString(16).slice(2);
-}
-
-// ===== Paleta de alto contraste (tipo “neón”) =====
-const palette = [
-  "#00E5FF", // cian
-  "#FF1744", // rojo
-  "#FFEA00", // amarillo
-  "#00E676", // verde
-  "#7C4DFF", // violeta
-  "#FF9100", // naranja
-  "#1DE9B6", // turquesa
-  "#FF4081", // rosa
-  "#76FF03", // lima
-  "#2979FF", // azul
-  "#F500FF", // magenta
-  "#FFD600"  // dorado
+const barrios = [
+  { name: "Centro", coords: [42.3412, -3.7018], radius: 0.005 },
+  { name: "Gamonal", coords: [42.3510, -3.6680], radius: 0.008 },
+  { name: "G-3", coords: [42.3565, -3.6745], radius: 0.004 },
+  { name: "Huelgas", coords: [42.3375, -3.7202], radius: 0.005 },
+  { name: "San Pedro de la Fuente", coords: [42.3460, -3.7150], radius: 0.004 },
+  { name: "Fuentecillas", coords: [42.3480, -3.7250], radius: 0.006 }
 ];
 
-function colorForIndex(i) {
-  if (i < palette.length) return palette[i];
-  const hue = (i * 137.508) % 360;
-  return `hsl(${hue} 95% 55%)`;
-}
+// Generador de puntos aleatorios simulando actividad
+function generateLivePoints(mode) {
+  const points = [];
+  barrios.forEach(barrio => {
+    let count = 20; // Actividad base
 
-// ===== Pin tipo gota invertida =====
-function pinIcon(color) {
-  return L.divIcon({
-    className: "",
-    html: `<div class="pin-drop" style="--pin:${color}"></div>`,
-    // El divIcon necesita un tamaño/ancla coherente:
-    iconSize: [26, 26],
-    // El “pico” está abajo (tras rotar -45º), anclamos aprox ahí
-    iconAnchor: [13, 26],
-    popupAnchor: [0, -24],
+    // Cambiamos la densidad dependiendo del botón pulsado
+    if (mode === 'empleo') {
+      if (barrio.name === 'Centro' || barrio.name === 'Gamonal') count = 50;
+    } else if (mode === 'vivienda') {
+      if (barrio.name === 'G-3' || barrio.name === 'Fuentecillas') count = 40;
+    } else if (mode === 'servicios') {
+      if (barrio.name === 'Centro' || barrio.name === 'G-3') count = 60;
+    }
+
+    // Generar las coordenadas con cierta dispersión aleatoria
+    for (let i = 0; i < count; i++) {
+      const lat = barrio.coords[0] + (Math.random() - 0.5) * barrio.radius * 2;
+      const lng = barrio.coords[1] + (Math.random() - 0.5) * barrio.radius * 2;
+      const intensity = Math.random() * 0.8 + 0.2; // Intensidad del punto
+      points.push([lat, lng, intensity]);
+    }
   });
+  return points;
 }
 
-function setActive(id) {
-  if (activeId && cardById.get(activeId)) cardById.get(activeId).classList.remove("active");
-  activeId = id;
-  if (activeId && cardById.get(activeId)) cardById.get(activeId).classList.add("active");
-}
-
-function openProject(id) {
-  const marker = markerById.get(id);
-  if (!marker) return;
-
-  setActive(id);
-  map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15), { animate: true });
-  marker.openPopup();
-}
-
-function renderList(features) {
-  listEl.innerHTML = "";
-  cardById.clear();
-
-  countPill.textContent = String(features.length);
-  statusCount.textContent = String(allFeatures.length);
-
-  features.forEach((f) => {
-    const p = f.properties || {};
-    const id = p._id;
-    const titulo = p.titulo || "Proyecto";
-    const desc = p.descripcion || "";
-    const url = p.url || "";
-    const cat = p.categoria || "Proyecto";
-    const color = p._color || "#00E5FF";
-
-    const card = document.createElement("div");
-    card.className = "card";
-    card.tabIndex = 0;
-
-    card.innerHTML = `
-      <h3>
-        <span class="dot" style="--dot:${escapeHtml(color)}"></span>
-        ${escapeHtml(titulo)}
-      </h3>
-      ${desc ? `<p>${escapeHtml(desc)}</p>` : ""}
-      <div class="meta">
-        <span class="tag">${escapeHtml(cat)}</span>
-        ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}
-      </div>
-    `;
-
-    card.addEventListener("click", () => openProject(id));
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") openProject(id);
-    });
-
-    listEl.appendChild(card);
-    cardById.set(id, card);
-  });
-
-  if (activeId && cardById.get(activeId)) cardById.get(activeId).classList.add("active");
-}
-
-function applySearch() {
-  const q = (searchInput.value || "").trim().toLowerCase();
-  if (!q) {
-    searchHint.textContent = "";
-    renderList(allFeatures);
-    return;
+// ==============================
+// Actualización del Mapa de Calor
+// ==============================
+function updateHeatmap() {
+  const data = generateLivePoints(currentMode);
+  
+  // Si ya existe una capa, la borramos antes de poner la nueva
+  if (heatLayer) {
+    map.removeLayer(heatLayer);
   }
 
-  const filtered = allFeatures.filter((f) => {
-    const p = f.properties || {};
-    const hay = `${p.titulo || ""} ${p.descripcion || ""} ${p.categoria || ""}`.toLowerCase();
-    return hay.includes(q);
-  });
+  // Crear la nueva capa de calor
+  heatLayer = L.heatLayer(data, {
+    radius: 25,
+    blur: 15,
+    maxZoom: 17,
+    gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1: 'red' }
+  }).addTo(map);
 
-  searchHint.textContent = `${filtered.length} resultado(s)`;
-  renderList(filtered);
+  // Actualizar el texto del HUD
+  document.getElementById('update-text').innerText = `Datos de ${currentMode} actualizados`;
 }
 
 // ==============================
-// Load GeoJSON points
+// Interacciones de la Interfaz
 // ==============================
-fetch("data/proyectos.geojson")
-  .then((r) => {
-    if (!r.ok) throw new Error(`No se pudo cargar data/proyectos.geojson (HTTP ${r.status})`);
-    return r.json();
-  })
-  .then((geojson) => {
-    (geojson.features || []).forEach((f, i) => {
-      if (!f.properties) f.properties = {};
-      f.properties._id = makeId(f);
-      // Si defines "color" en GeoJSON, se respeta; si no, se asigna por índice
-      f.properties._color = f.properties.color || colorForIndex(i);
-    });
+window.changeMode = function(mode) {
+  currentMode = mode;
+  
+  // Actualizar los botones visualmente
+  document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`btn-${mode}`).classList.add('active');
+  
+  // Refrescar el mapa inmediatamente
+  updateHeatmap();
+}
 
-    allFeatures = (geojson.features || []);
+// Iniciar al cargar la ventana
+window.onload = () => {
+  updateHeatmap();
+  // El "Tiempo real": recarga los datos cada 5 segundos
+  setInterval(updateHeatmap, 5000);
+};
 
-    const capa = L.geoJSON(geojson, {
-      pointToLayer: (feature, latlng) => {
-        const p = feature.properties || {};
-        const color = p._color || "#00E5FF";
-        return L.marker(latlng, { icon: pinIcon(color) });
-      },
-      onEachFeature: (feature, layer) => {
-        const p = feature.properties || {};
-        const id = p._id;
-
-        const titulo = p.titulo || "Proyecto";
-        const desc = p.descripcion ? `<p>${escapeHtml(p.descripcion)}</p>` : "";
-        const url = p.url
-          ? `<p><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">Abrir recurso</a></p>`
-          : "";
-
-        layer.bindPopup(`<h3>${escapeHtml(titulo)}</h3>${desc}${url}`);
-
-        markerById.set(id, layer);
-        layer.on("click", () => setActive(id));
-      },
-    }).addTo(map);
-
-    const bounds = capa.getBounds();
-    if (bounds.isValid()) map.fitBounds(bounds.pad(0.18));
-
-    countPill.textContent = String(allFeatures.length);
-    statusCount.textContent = String(allFeatures.length);
-    renderList(allFeatures);
-  })
-  .catch((err) => {
-    console.error(err);
-    alert("Error cargando chinchetas. Revisa consola (F12).");
-  });
-
-// ==============================
-// Map click → coords (debug)
-// ==============================
-map.on("click", (e) => {
-  console.log("Coordenadas (lat, lon):", e.latlng.lat, e.latlng.lng);
-});
-
-// ==============================
-// UI actions
-// ==============================
-btnCenter.addEventListener("click", () => {
-  map.setView(centroBurgos, zoomInicial, { animate: true });
-});
-
-btnTogglePanel.addEventListener("click", () => {
-  panel.classList.toggle("closed");
-});
-
-btnClosePanel.addEventListener("click", () => {
-  panel.classList.add("closed");
-});
-
-searchInput.addEventListener("input", applySearch);
